@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 
 import { useState } from "react";
-import { Routes, Route, Link, useMatch } from "react-router-dom";
+import { Routes, Route, Link, useMatch, useNavigate } from "react-router-dom";
 
 // Nuevo componente para la vista individual
 const Anecdote = ({ anecdote }) => {
@@ -92,6 +92,8 @@ const CreateNew = (props) => {
   const [author, setAuthor] = useState("");
   const [info, setInfo] = useState("");
 
+  const navigate = useNavigate();
+
   const handleSubmit = (e) => {
     e.preventDefault();
     props.addNew({
@@ -100,6 +102,8 @@ const CreateNew = (props) => {
       info,
       votes: 0,
     });
+    // Redirigimos a la raíz después de crear
+    navigate("/");
   };
 
   return (
@@ -165,6 +169,12 @@ const App = () => {
   const addNew = (anecdote) => {
     anecdote.id = Math.round(Math.random() * 10000);
     setAnecdotes(anecdotes.concat(anecdote));
+
+    // Lógica de la notificación
+    setNotification(`a new anecdote '${anecdote.content}' created!`);
+    setTimeout(() => {
+      setNotification("");
+    }, 5000);
   };
 
   const anecdoteById = (id) => anecdotes.find((a) => a.id === id);
@@ -184,8 +194,14 @@ const App = () => {
     <div>
       <h1>Software anecdotes</h1>
       <Menu />
+      {/* Mostramos la notificación si existe */}
+      {notification && (
+        <div style={{ border: "2px solid red", padding: 10, marginTop: 10 }}>
+          {notification}
+        </div>
+      )}
 
-      {/* 3. Definimos qué componente se muestra según el path */}
+      {/* Definimos qué componente se muestra según el path */}
       <Routes>
         {/* Definimos la ruta para una anécdota específica */}
         <Route
