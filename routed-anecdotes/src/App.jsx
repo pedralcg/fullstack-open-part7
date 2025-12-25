@@ -89,19 +89,19 @@ const Footer = () => (
 );
 
 const CreateNew = (props) => {
-  // Definimos los campos usando el hook
-  const content = useField("text");
-  const author = useField("text");
-  const info = useField("text");
+  // Extraemos 'reset' y agrupamos el resto en una variable (ej: contentProps)
+  const { reset: resetContent, ...contentProps } = useField("text");
+  const { reset: resetAuthor, ...authorProps } = useField("text");
+  const { reset: resetInfo, ...infoProps } = useField("text");
 
   const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
     props.addNew({
-      content: content.value,
-      author: author.value,
-      info: info.value,
+      content: contentProps.value,
+      author: authorProps.value,
+      info: infoProps.value,
       votes: 0,
     });
     // Redirigimos a la raíz después de crear
@@ -110,9 +110,9 @@ const CreateNew = (props) => {
 
   // Función para manejar el clic en el botón reset
   const handleReset = () => {
-    content.reset();
-    author.reset();
-    info.reset();
+    resetContent();
+    resetAuthor();
+    resetInfo();
   };
 
   return (
@@ -121,23 +121,16 @@ const CreateNew = (props) => {
       <form onSubmit={handleSubmit}>
         <div>
           content
-          <input
-            type={content.type}
-            value={content.value}
-            onChange={content.onChange}
-          />
+          {/* Ahora pasamos todo (type, value, onChange) de una sola vez */}
+          <input {...contentProps} />
         </div>
         <div>
           author
-          <input
-            type={author.type}
-            value={author.value}
-            onChange={author.onChange}
-          />
+          <input {...authorProps} />
         </div>
         <div>
           url for more info
-          <input type={info.type} value={info.value} onChange={info.onChange} />
+          <input {...infoProps} />
         </div>
         <button type="submit">create</button>
         {/* Botón de Reset*/}
