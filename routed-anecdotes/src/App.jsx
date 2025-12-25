@@ -108,6 +108,13 @@ const CreateNew = (props) => {
     navigate("/");
   };
 
+  // Función para manejar el clic en el botón reset
+  const handleReset = () => {
+    content.reset();
+    author.reset();
+    info.reset();
+  };
+
   return (
     <div>
       <h2>create a new anecdote</h2>
@@ -132,7 +139,11 @@ const CreateNew = (props) => {
           url for more info
           <input type={info.type} value={info.value} onChange={info.onChange} />
         </div>
-        <button>create</button>
+        <button type="submit">create</button>
+        {/* Botón de Reset*/}
+        <button type="button" onClick={handleReset}>
+          reset
+        </button>
       </form>
     </div>
   );
