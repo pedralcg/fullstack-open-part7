@@ -1,35 +1,63 @@
 import { useState, useEffect, useRef } from 'react'
-import Blog from './components/Blog'
+import { Routes, Route, useMatch, Link } from 'react-router-dom' // Importación de Router
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+
+// Servicios
 import blogService from './services/blogs'
 import loginService from './services/login'
+import userService from './services/users' // INDICACIÓN: Importación añadida
+
+// Componentes y Contextos
+import Blog from './components/Blog'
 import Notification from './components/Notification'
 import Togglable from './components/Togglable'
 import BlogForm from './components/BlogForm'
+import Users from './components/Users'
+import User from './components/User'
 import { useNotificationDispatch } from './NotificationContext'
 import { useUserValue, useUserDispatch } from './UserContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import './index.css'
-import Users from './components/Users'
 
 const App = () => {
   const user = useUserValue()
   const userDispatch = useUserDispatch()
-
-  // Para las credenciales, podemos mantener useState local
+  const dispatch = useNotificationDispatch()
+  const queryClient = useQueryClient()
+  const blogFormRef = useRef()
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
 
-  const dispatch = useNotificationDispatch()
+  // 1. INDICACIÓN: Todos los Hooks deben ir al principio, ANTES de cualquier return.
+  // Esto evita el error "React Hook is called conditionally".
 
-  // Acceso al cliente de query
-  const queryClient = useQueryClient()
+  // Hook para Blogs
+  const blogResult = useQuery({
+    queryKey: ['blogs'],
+    queryFn: blogService.getAll,
+    enabled: !!user,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
 
-  // Nueva ref para el componente Togglable
-  const blogFormRef = useRef()
+  // Hook para Usuarios (Ejercicio 7.15)
+  const usersResult = useQuery({
+    queryKey: ['users'],
+    queryFn: userService.getAll,
+    enabled: !!user, // Solo se pide si hay usuario logueado
+  })
 
-  //! useEffect para Cargar la Sesión desde localStorage al inicio ---
+  // Hook de Match para la ruta individual
+  const match = useMatch('/users/:id')
+
+  // 2. Lógica de filtrado de usuario (No es un hook, puede ir aquí)
+  const individualUser =
+    match && usersResult.data
+      ? usersResult.data.find((u) => u.id === match.params.id)
+      : null
+
+  //! useEffect para Cargar la Sesión
   useEffect(() => {
     const loggedUserJSON = window.localStorage.getItem('loggedBlogappUser')
     if (loggedUserJSON) {
@@ -39,23 +67,12 @@ const App = () => {
     }
   }, [userDispatch])
 
-  // --- Obtención de blogs con React Query ---
-  const result = useQuery({
-    queryKey: ['blogs'],
-    queryFn: blogService.getAll,
-    enabled: !!user, // Solo se ejecuta si hay un usuario logueado
-    retry: 1,
-    refetchOnWindowFocus: false,
-  })
-
-  // --- Mutación para crear blogs ---
+  // --- Mutaciones ---
   const newBlogMutation = useMutation({
     mutationFn: blogService.create,
     onSuccess: (newBlog) => {
-      // Actualizamos la caché manualmente para una respuesta instantánea
       const blogs = queryClient.getQueryData(['blogs'])
       queryClient.setQueryData(['blogs'], blogs.concat(newBlog))
-
       dispatch({
         type: 'SET',
         payload: {
@@ -77,84 +94,21 @@ const App = () => {
     },
   })
 
-  //! Función para Manejar el Inicio de Sesión
-  const handleLogin = async (event) => {
-    event.preventDefault()
-    try {
-      const loggedInUser = await loginService.login({ username, password })
-      window.localStorage.setItem(
-        'loggedBlogappUser',
-        JSON.stringify(loggedInUser),
-      )
-      blogService.setToken(loggedInUser.token)
-
-      // Actualizar el contexto
-      userDispatch({ type: 'LOGIN', payload: loggedInUser })
-
-      setUsername('')
-      setPassword('')
-
-      // CAMBIO: Usando dispatch en lugar de setSuccessMessage
-      dispatch({
-        type: 'SET',
-        payload: { message: `Welcome, ${loggedInUser.name}!`, type: 'success' },
-      })
-      setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
-
-      console.log('Login exitoso:', loggedInUser)
-    } catch (exception) {
-      // CAMBIO: Usando dispatch en lugar de setErrorMessage
-      dispatch({
-        type: 'SET',
-        payload: { message: 'Wrong credentials', type: 'error' },
-      })
-      setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
-      console.error('Error de login:', exception)
-    }
-  }
-
-  //! Función para Manejar el Cerrar Sesión
-  const handleLogout = () => {
-    window.localStorage.removeItem('loggedBlogappUser')
-    blogService.setToken(null)
-    userDispatch({ type: 'LOGOUT' })
-
-    // CAMBIO: Usando dispatch
-    dispatch({
-      type: 'SET',
-      payload: { message: 'Logged out successfully.', type: 'success' },
-    })
-    setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
-    console.log('Sesión cerrada.')
-  }
-
-  //! Función para Manejar la Creación de un Nuevo Blog
-  const addBlog = async (blogObject) => {
-    blogFormRef.current.toggleVisibility()
-    // Sustituimos la lógica manual por la mutación
-    newBlogMutation.mutate(blogObject)
-  }
-
-  // --- Mutación para dar LIKE ---
   const updateBlogMutation = useMutation({
     mutationFn: (blogToUpdate) => {
-      // Creamos una copia del objeto para no enviar datos innecesarios al backend
       const blogForBackend = {
         ...blogToUpdate,
         likes: blogToUpdate.likes + 1,
-        // Enviamos solo el ID. Si 'user' es un objeto, extraemos el id.
         user: blogToUpdate.user?.id || blogToUpdate.user,
       }
       return blogService.update(blogToUpdate.id, blogForBackend)
     },
     onSuccess: (updatedBlog) => {
-      // Importante: Actualizamos la caché con los datos que devuelve el servidor
       const blogs = queryClient.getQueryData(['blogs'])
       queryClient.setQueryData(
         ['blogs'],
         blogs.map((b) => (b.id === updatedBlog.id ? updatedBlog : b)),
       )
-
       dispatch({
         type: 'SET',
         payload: {
@@ -166,7 +120,6 @@ const App = () => {
     },
   })
 
-  // --- Mutación para ELIMINAR ---
   const deleteBlogMutation = useMutation({
     mutationFn: blogService.remove,
     onSuccess: (_, deletedId) => {
@@ -181,50 +134,52 @@ const App = () => {
       })
       setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
     },
-    onError: (error) => {
-      dispatch({
-        type: 'SET',
-        payload: {
-          message: error.response?.data?.error || 'Error deleting blog',
-          type: 'error',
-        },
-      })
-      setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
-    },
   })
 
-  const loginForm = () => (
-    <div>
-      <h2>Log in to application</h2>
-      <form onSubmit={handleLogin}>
-        <div>
-          username
-          <input
-            type="text"
-            value={username}
-            name="Username"
-            data-testid="username-input"
-            onChange={({ target }) => setUsername(target.value)}
-          />
-        </div>
-        <div>
-          password
-          <input
-            type="password"
-            value={password}
-            name="Password"
-            data-testid="password-input"
-            onChange={({ target }) => setPassword(target.value)}
-          />
-        </div>
-        <button type="submit">login</button>
-      </form>
-    </div>
-  )
-
-  const updateBlog = (blogToUpdate) => {
-    updateBlogMutation.mutate(blogToUpdate)
+  // Handlers
+  const handleLogin = async (event) => {
+    event.preventDefault()
+    try {
+      const loggedInUser = await loginService.login({ username, password })
+      window.localStorage.setItem(
+        'loggedBlogappUser',
+        JSON.stringify(loggedInUser),
+      )
+      blogService.setToken(loggedInUser.token)
+      userDispatch({ type: 'LOGIN', payload: loggedInUser })
+      setUsername('')
+      setPassword('')
+      dispatch({
+        type: 'SET',
+        payload: { message: `Welcome, ${loggedInUser.name}!`, type: 'success' },
+      })
+      setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
+    } catch (exception) {
+      dispatch({
+        type: 'SET',
+        payload: { message: 'Wrong credentials', type: 'error' },
+      })
+      setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
+    }
   }
+
+  const handleLogout = () => {
+    window.localStorage.removeItem('loggedBlogappUser')
+    blogService.setToken(null)
+    userDispatch({ type: 'LOGOUT' })
+    dispatch({
+      type: 'SET',
+      payload: { message: 'Logged out successfully.', type: 'success' },
+    })
+    setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
+  }
+
+  const addBlog = (blogObject) => {
+    blogFormRef.current.toggleVisibility()
+    newBlogMutation.mutate(blogObject)
+  }
+
+  const updateBlog = (blogToUpdate) => updateBlogMutation.mutate(blogToUpdate)
 
   const handleDeleteBlog = (blogToDelete) => {
     if (
@@ -236,43 +191,81 @@ const App = () => {
     }
   }
 
+  // 3. INDICACIÓN: Los returns condicionales van AQUÍ, después de definir los hooks.
   if (user === null) {
     return (
       <div>
-        {/* CAMBIO: Solo una instancia sin props */}
         <Notification />
-        {loginForm()}
+        <h2>Log in to application</h2>
+        <form onSubmit={handleLogin}>
+          <div>
+            username{' '}
+            <input
+              type="text"
+              value={username}
+              onChange={({ target }) => setUsername(target.value)}
+            />
+          </div>
+          <div>
+            password{' '}
+            <input
+              type="password"
+              value={password}
+              onChange={({ target }) => setPassword(target.value)}
+            />
+          </div>
+          <button type="submit">login</button>
+        </form>
       </div>
     )
   }
 
-  // Manejo de estados de carga de React Query
-  if (result.isLoading) return <div>Loading blogs...</div>
-  if (result.isError)
-    return <div>Blog service not available due to server error</div>
+  if (blogResult.isLoading || usersResult.isLoading)
+    return <div>Loading data...</div>
 
-  const blogs = [...result.data].sort((a, b) => b.likes - a.likes)
+  const blogs = [...blogResult.data].sort((a, b) => b.likes - a.likes)
 
   return (
     <div>
       <Notification />
+      {/* NUEVA BARRA DE NAVEGACIÓN */}
+      <nav style={{ backgroundColor: '#ddd', padding: 5, marginBottom: 10 }}>
+        <Link style={{ padding: 5 }} to="/">
+          blogs
+        </Link>
+        <Link style={{ padding: 5 }} to="/users">
+          users
+        </Link>
+        <span style={{ padding: 5 }}>
+          {user.name} logged in <button onClick={handleLogout}>logout</button>
+        </span>
+      </nav>
       <h2>Blogs</h2>
-      <p>
-        {user.name} logged in <button onClick={handleLogout}>logout</button>
-      </p>
-      <Togglable buttonLabel="create new blog" ref={blogFormRef}>
-        <BlogForm createBlog={addBlog} />
-      </Togglable>
-      {blogs.map((blog) => (
-        <Blog
-          key={blog.id}
-          blog={blog}
-          handleLike={() => updateBlog(blog)}
-          handleDelete={() => handleDeleteBlog(blog)}
-          currentUser={user}
+
+      <Routes>
+        {/* INDICACIÓN: Pasamos el individualUser calculado arriba */}
+        <Route path="/users/:id" element={<User user={individualUser} />} />
+        <Route path="/users" element={<Users />} />
+        <Route
+          path="/"
+          element={
+            <>
+              <Togglable buttonLabel="create new blog" ref={blogFormRef}>
+                <BlogForm createBlog={addBlog} />
+              </Togglable>
+              {blogs.map((blog) => (
+                <Blog
+                  key={blog.id}
+                  blog={blog}
+                  handleLike={() => updateBlog(blog)}
+                  handleDelete={() => handleDeleteBlog(blog)}
+                  currentUser={user}
+                />
+              ))}
+            </>
+          }
         />
-      ))}
-      <Users />
+      </Routes>
     </div>
   )
 }
