@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import { createContext, useReducer, useContext } from 'react'
 
 const notificationReducer = (state, action) => {

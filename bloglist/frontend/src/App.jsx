@@ -11,7 +11,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import './index.css'
 
 const App = () => {
-  // const [blogs, setBlogs] = useState([])
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [user, setUser] = useState(null)
@@ -135,85 +134,63 @@ const App = () => {
     newBlogMutation.mutate(blogObject)
   }
 
-  //! Función para manejar el Like de un Blog
-  const updateBlog = async (blogToUpdate) => {
-    try {
-      const returnedBlog = await blogService.update(
-        blogToUpdate.id,
-        blogToUpdate,
+  // --- Mutación para dar LIKE ---
+  const updateBlogMutation = useMutation({
+    mutationFn: (blogToUpdate) => {
+      // Creamos una copia del objeto para no enviar datos innecesarios al backend
+      const blogForBackend = {
+        ...blogToUpdate,
+        likes: blogToUpdate.likes + 1,
+        // Enviamos solo el ID. Si 'user' es un objeto, extraemos el id.
+        user: blogToUpdate.user?.id || blogToUpdate.user,
+      }
+      return blogService.update(blogToUpdate.id, blogForBackend)
+    },
+    onSuccess: (updatedBlog) => {
+      // Importante: Actualizamos la caché con los datos que devuelve el servidor
+      const blogs = queryClient.getQueryData(['blogs'])
+      queryClient.setQueryData(
+        ['blogs'],
+        blogs.map((b) => (b.id === updatedBlog.id ? updatedBlog : b)),
       )
 
-      // setBlogs((prevBlogs) => {
-      //   const updatedBlogs = prevBlogs.map((blog) =>
-      //     blog.id === blogToUpdate.id ? returnedBlog : blog,
-      //   )
-      //   return updatedBlogs.sort((a, b) => b.likes - a.likes)
-      // })
-
-      // CAMBIO: Usando dispatch
       dispatch({
         type: 'SET',
         payload: {
-          message: `You liked "${returnedBlog.title}"! Likes: ${returnedBlog.likes}`,
+          message: `You liked "${updatedBlog.title}"!`,
           type: 'success',
         },
       })
       setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
-    } catch (exception) {
-      // CAMBIO: Usando dispatch
+    },
+  })
+
+  // --- Mutación para ELIMINAR ---
+  const deleteBlogMutation = useMutation({
+    mutationFn: blogService.remove,
+    onSuccess: (_, deletedId) => {
+      const blogs = queryClient.getQueryData(['blogs'])
+      queryClient.setQueryData(
+        ['blogs'],
+        blogs.filter((b) => b.id !== deletedId),
+      )
+      dispatch({
+        type: 'SET',
+        payload: { message: 'Blog successfully removed!', type: 'success' },
+      })
+      setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
+    },
+    onError: (error) => {
       dispatch({
         type: 'SET',
         payload: {
-          message: `Error liking blog: ${exception.response?.data?.error || exception.message}`,
+          message: error.response?.data?.error || 'Error deleting blog',
           type: 'error',
         },
       })
       setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
-    }
-  }
-
-  //! Función para manejar la Eliminación de un Blog
-  const handleDeleteBlog = async (blogToDelete) => {
-    if (
-      window.confirm(
-        `Remove blog "${blogToDelete.title}" by ${blogToDelete.author}?`,
-      )
-    ) {
-      try {
-        await blogService.remove(blogToDelete.id)
-
-        // setBlogs((prevBlogs) =>
-        //   prevBlogs.filter((blog) => blog.id !== blogToDelete.id),
-        // )
-
-        // CAMBIO: Usando dispatch
-        dispatch({
-          type: 'SET',
-          payload: {
-            message: `Blog "${blogToDelete.title}" successfully removed!`,
-            type: 'success',
-          },
-        })
-        setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
-      } catch (exception) {
-        let message = `Error deleting blog: ${exception.response?.data?.error || exception.message}`
-
-        // if (exception.response && exception.response.status === 401) {
-        //   message =
-        //     'You are not authorized to delete this blog. Please log in as the creator.'
-        // } else if (exception.response && exception.response.status === 404) {
-        //   message = `Blog "${blogToDelete.title}" has already been removed from the server.`
-        //   setBlogs((prevBlogs) =>
-        //     prevBlogs.filter((blog) => blog.id !== blogToDelete.id),
-        //   )
-        // }
-
-        // CAMBIO: Usando dispatch
-        dispatch({ type: 'SET', payload: { message, type: 'error' } })
-        setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
-      }
-    }
-  }
+    },
+  })
 
   const loginForm = () => (
     <div>
@@ -244,11 +221,19 @@ const App = () => {
     </div>
   )
 
-  const blogForm = () => (
-    <Togglable buttonLabel="create new blog" ref={blogFormRef}>
-      <BlogForm createBlog={addBlog} />
-    </Togglable>
-  )
+  const updateBlog = (blogToUpdate) => {
+    updateBlogMutation.mutate(blogToUpdate)
+  }
+
+  const handleDeleteBlog = (blogToDelete) => {
+    if (
+      window.confirm(
+        `Remove blog "${blogToDelete.title}" by ${blogToDelete.author}?`,
+      )
+    ) {
+      deleteBlogMutation.mutate(blogToDelete.id)
+    }
+  }
 
   if (user === null) {
     return (
@@ -265,24 +250,24 @@ const App = () => {
   if (result.isError)
     return <div>Blog service not available due to server error</div>
 
-  const blogs = result.data.sort((a, b) => b.likes - a.likes)
+  const blogs = [...result.data].sort((a, b) => b.likes - a.likes)
 
   return (
     <div>
-      {/* CAMBIO: Solo una instancia sin props */}
       <Notification />
       <h2>Blogs</h2>
       <p>
-        {user.name} logged in
-        <button onClick={handleLogout}>logout</button>
+        {user.name} logged in <button onClick={handleLogout}>logout</button>
       </p>
-      {blogForm()}
+      <Togglable buttonLabel="create new blog" ref={blogFormRef}>
+        <BlogForm createBlog={addBlog} />
+      </Togglable>
       {blogs.map((blog) => (
         <Blog
           key={blog.id}
           blog={blog}
-          handleLike={updateBlog}
-          handleDelete={handleDeleteBlog}
+          handleLike={() => updateBlog(blog)}
+          handleDelete={() => handleDeleteBlog(blog)}
           currentUser={user}
         />
       ))}
