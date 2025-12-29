@@ -10,6 +10,7 @@ import { useUserValue, useUserDispatch } from './UserContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import './index.css'
+import Users from './components/Users'
 
 const App = () => {
   const user = useUserValue()
@@ -271,6 +272,7 @@ const App = () => {
           currentUser={user}
         />
       ))}
+      <Users />
     </div>
   )
 }
