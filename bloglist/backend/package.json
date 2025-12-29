@@ -1,0 +1,43 @@
+{
+  "name": "blogs-backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "cross-env NODE_ENV=production node index.js",
+    "dev": "cross-env NODE_ENV=development nodemon index.js",
+    "test": "cross-env NODE_ENV=test node --test",
+    "build:ui": "rm -rf build && cd ../frontend/ && npm run build && cp -r build ../backend",
+    "deploy": "fly deploy",
+    "deploy:full": "npm run build:ui && npm run deploy",
+    "logs:prod": "fly logs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "start:test": "cross-env NODE_ENV=test node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pedralcg/fullstack-open-blogs-backend.git"
+  },
+  "author": "@pedralcg",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pedralcg/fullstack-open-blogs-backend/issues"
+  },
+  "homepage": "https://github.com/pedralcg/fullstack-open-blogs-backend#readme",
+  "description": "",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "lodash": "^4.17.21",
+    "mongoose": "^8.15.1"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.1"
+  }
+}
