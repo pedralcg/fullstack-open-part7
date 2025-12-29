@@ -6,16 +6,20 @@ import Notification from './components/Notification'
 import Togglable from './components/Togglable'
 import BlogForm from './components/BlogForm'
 import { useNotificationDispatch } from './NotificationContext'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import './index.css'
 
 const App = () => {
-  const [blogs, setBlogs] = useState([])
+  // const [blogs, setBlogs] = useState([])
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [user, setUser] = useState(null)
 
   const dispatch = useNotificationDispatch()
+
+  // Acceso al cliente de query
+  const queryClient = useQueryClient()
 
   // Nueva ref para el componente Togglable
   const blogFormRef = useRef()
@@ -31,15 +35,43 @@ const App = () => {
     }
   }, [])
 
-  //! useEffect para Cargar Blogs (ordenados por likes)
-  useEffect(() => {
-    if (user) {
-      blogService.getAll().then((blogs) => {
-        const sortedBlogs = blogs.sort((a, b) => b.likes - a.likes)
-        setBlogs(sortedBlogs)
+  // --- Obtención de blogs con React Query ---
+  const result = useQuery({
+    queryKey: ['blogs'],
+    queryFn: blogService.getAll,
+    enabled: !!user, // Solo se ejecuta si hay un usuario logueado
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+
+  // --- Mutación para crear blogs ---
+  const newBlogMutation = useMutation({
+    mutationFn: blogService.create,
+    onSuccess: (newBlog) => {
+      // Actualizamos la caché manualmente para una respuesta instantánea
+      const blogs = queryClient.getQueryData(['blogs'])
+      queryClient.setQueryData(['blogs'], blogs.concat(newBlog))
+
+      dispatch({
+        type: 'SET',
+        payload: {
+          message: `A new blog "${newBlog.title}" by ${newBlog.author} added!`,
+          type: 'success',
+        },
       })
-    }
-  }, [user])
+      setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
+    },
+    onError: (exception) => {
+      dispatch({
+        type: 'SET',
+        payload: {
+          message: `Error creating blog: ${exception.response?.data?.error || exception.message}`,
+          type: 'error',
+        },
+      })
+      setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
+    },
+  })
 
   //! Función para Manejar el Inicio de Sesión
   const handleLogin = async (event) => {
@@ -98,34 +130,9 @@ const App = () => {
 
   //! Función para Manejar la Creación de un Nuevo Blog
   const addBlog = async (blogObject) => {
-    try {
-      blogFormRef.current.toggleVisibility()
-
-      const returnedBlog = await blogService.create(blogObject)
-      setBlogs(blogs.concat(returnedBlog))
-
-      // CAMBIO: Usando dispatch
-      dispatch({
-        type: 'SET',
-        payload: {
-          message: `A new blog "${returnedBlog.title}" by ${returnedBlog.author} added!`,
-          type: 'success',
-        },
-      })
-      setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
-
-      console.log('Blog creado:', returnedBlog)
-    } catch (exception) {
-      // CAMBIO: Usando dispatch
-      dispatch({
-        type: 'SET',
-        payload: {
-          message: `Error creating blog: ${exception.response?.data?.error || exception.message}`,
-          type: 'error',
-        },
-      })
-      setTimeout(() => dispatch({ type: 'CLEAR' }), 5000)
-    }
+    blogFormRef.current.toggleVisibility()
+    // Sustituimos la lógica manual por la mutación
+    newBlogMutation.mutate(blogObject)
   }
 
   //! Función para manejar el Like de un Blog
@@ -136,12 +143,12 @@ const App = () => {
         blogToUpdate,
       )
 
-      setBlogs((prevBlogs) => {
-        const updatedBlogs = prevBlogs.map((blog) =>
-          blog.id === blogToUpdate.id ? returnedBlog : blog,
-        )
-        return updatedBlogs.sort((a, b) => b.likes - a.likes)
-      })
+      // setBlogs((prevBlogs) => {
+      //   const updatedBlogs = prevBlogs.map((blog) =>
+      //     blog.id === blogToUpdate.id ? returnedBlog : blog,
+      //   )
+      //   return updatedBlogs.sort((a, b) => b.likes - a.likes)
+      // })
 
       // CAMBIO: Usando dispatch
       dispatch({
@@ -175,9 +182,9 @@ const App = () => {
       try {
         await blogService.remove(blogToDelete.id)
 
-        setBlogs((prevBlogs) =>
-          prevBlogs.filter((blog) => blog.id !== blogToDelete.id),
-        )
+        // setBlogs((prevBlogs) =>
+        //   prevBlogs.filter((blog) => blog.id !== blogToDelete.id),
+        // )
 
         // CAMBIO: Usando dispatch
         dispatch({
@@ -191,15 +198,15 @@ const App = () => {
       } catch (exception) {
         let message = `Error deleting blog: ${exception.response?.data?.error || exception.message}`
 
-        if (exception.response && exception.response.status === 401) {
-          message =
-            'You are not authorized to delete this blog. Please log in as the creator.'
-        } else if (exception.response && exception.response.status === 404) {
-          message = `Blog "${blogToDelete.title}" has already been removed from the server.`
-          setBlogs((prevBlogs) =>
-            prevBlogs.filter((blog) => blog.id !== blogToDelete.id),
-          )
-        }
+        // if (exception.response && exception.response.status === 401) {
+        //   message =
+        //     'You are not authorized to delete this blog. Please log in as the creator.'
+        // } else if (exception.response && exception.response.status === 404) {
+        //   message = `Blog "${blogToDelete.title}" has already been removed from the server.`
+        //   setBlogs((prevBlogs) =>
+        //     prevBlogs.filter((blog) => blog.id !== blogToDelete.id),
+        //   )
+        // }
 
         // CAMBIO: Usando dispatch
         dispatch({ type: 'SET', payload: { message, type: 'error' } })
@@ -252,6 +259,13 @@ const App = () => {
       </div>
     )
   }
+
+  // Manejo de estados de carga de React Query
+  if (result.isLoading) return <div>Loading blogs...</div>
+  if (result.isError)
+    return <div>Blog service not available due to server error</div>
+
+  const blogs = result.data.sort((a, b) => b.likes - a.likes)
 
   return (
     <div>
