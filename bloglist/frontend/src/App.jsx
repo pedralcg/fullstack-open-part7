@@ -6,14 +6,19 @@ import Notification from './components/Notification'
 import Togglable from './components/Togglable'
 import BlogForm from './components/BlogForm'
 import { useNotificationDispatch } from './NotificationContext'
+import { useUserValue, useUserDispatch } from './UserContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import './index.css'
 
 const App = () => {
+  const user = useUserValue()
+  const userDispatch = useUserDispatch()
+
+  // Para las credenciales, podemos mantener useState local
+
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [user, setUser] = useState(null)
 
   const dispatch = useNotificationDispatch()
 
@@ -28,11 +33,10 @@ const App = () => {
     const loggedUserJSON = window.localStorage.getItem('loggedBlogappUser')
     if (loggedUserJSON) {
       const user = JSON.parse(loggedUserJSON)
-      setUser(user)
+      userDispatch({ type: 'LOGIN', payload: user })
       blogService.setToken(user.token)
-      console.log('Sesión restaurada desde localStorage para:', user.username)
     }
-  }, [])
+  }, [userDispatch])
 
   // --- Obtención de blogs con React Query ---
   const result = useQuery({
@@ -75,21 +79,17 @@ const App = () => {
   //! Función para Manejar el Inicio de Sesión
   const handleLogin = async (event) => {
     event.preventDefault()
-
     try {
-      const loggedInUser = await loginService.login({
-        username,
-        password,
-      })
-
+      const loggedInUser = await loginService.login({ username, password })
       window.localStorage.setItem(
         'loggedBlogappUser',
         JSON.stringify(loggedInUser),
       )
-
       blogService.setToken(loggedInUser.token)
 
-      setUser(loggedInUser)
+      // Actualizar el contexto
+      userDispatch({ type: 'LOGIN', payload: loggedInUser })
+
       setUsername('')
       setPassword('')
 
@@ -115,8 +115,8 @@ const App = () => {
   //! Función para Manejar el Cerrar Sesión
   const handleLogout = () => {
     window.localStorage.removeItem('loggedBlogappUser')
-    setUser(null)
     blogService.setToken(null)
+    userDispatch({ type: 'LOGOUT' })
 
     // CAMBIO: Usando dispatch
     dispatch({
