@@ -143,7 +143,20 @@ const App = () => {
     },
   })
 
+  const commentMutation = useMutation({
+    mutationFn: ({ id, comment }) => blogService.addComment(id, comment),
+    onSuccess: (updatedBlog) => {
+      queryClient.setQueryData(['blogs'], (oldBlogs) =>
+        oldBlogs.map((b) => (b.id === updatedBlog.id ? updatedBlog : b)),
+      )
+    },
+  })
+
   // Handlers
+  const handleAddComment = (id, comment) => {
+    commentMutation.mutate({ id, comment })
+  }
+
   const handleLogin = async (event) => {
     event.preventDefault()
     try {
@@ -292,7 +305,6 @@ const App = () => {
       <h1 style={{ marginTop: '0' }}>Blog App</h1>
 
       <Routes>
-        {/* INDICACIÓN: Nueva ruta para los detalles del blog */}
         <Route
           path="/blogs/:id"
           element={
@@ -301,11 +313,12 @@ const App = () => {
               handleLike={() => updateBlog(individualBlog)}
               handleDelete={() => handleDeleteBlog(individualBlog)}
               currentUser={user}
+              handleComment={handleAddComment} // Conexión para eliminar el warning de ESLint
             />
           }
         />
         <Route path="/users/:id" element={<User user={individualUser} />} />
-        <Route path="/users" element={<Users />} />
+        <Route path="/users" element={<Users users={usersResult.data} />} />
         <Route
           path="/"
           element={

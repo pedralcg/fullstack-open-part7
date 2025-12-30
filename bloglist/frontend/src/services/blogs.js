@@ -3,15 +3,19 @@ const baseUrl = '/api/blogs'
 
 let token = null // Variable para almacenar el token
 
-
-const setToken = newToken => {
+const setToken = (newToken) => {
   token = `Bearer ${newToken}` // Guarda el token con el prefijo "Bearer "
 }
-
 
 const getAll = async () => {
   const request = await axios.get(baseUrl)
   return request.data
+}
+
+const addComment = async (id, comment) => {
+  // El ejercicio pide un POST a api/blogs/:id/comments
+  const response = await axios.post(`${baseUrl}/${id}/comments`, { comment })
+  return response.data
 }
 
 /**
@@ -19,7 +23,7 @@ const getAll = async () => {
  * @param {object} newObject - El objeto del blog a crear (title, author, url, likes).
  * @returns {Promise<object>} Una promesa que se resuelve con el blog creado, o se rechaza con un error.
  */
-const create = async newObject => {
+const create = async (newObject) => {
   const config = {
     headers: { Authorization: token }, // Incluye el token en los encabezados de autorización
   }
@@ -34,7 +38,8 @@ const create = async newObject => {
  * @param {object} updatedObject - El objeto del blog con los campos actualizados.
  * @returns {Promise<object>} Una promesa que se resuelve con el blog actualizado, o se rechaza con un error.
  */
-const update = async (id, updatedObject) => { // <-- ¡NUEVA FUNCIÓN UPDATE!
+const update = async (id, updatedObject) => {
+  // <-- ¡NUEVA FUNCIÓN UPDATE!
   const config = {
     headers: { Authorization: token }, // Incluye el token en los encabezados de autorización (si PUT lo requiere)
   }
@@ -57,4 +62,4 @@ const remove = async (id) => {
   return response.data
 }
 
-export default { getAll, setToken, create, update, remove }
+export default { getAll, create, update, remove, setToken, addComment }
