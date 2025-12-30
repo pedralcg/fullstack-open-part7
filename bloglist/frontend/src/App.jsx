@@ -232,22 +232,64 @@ const App = () => {
 
   const blogs = [...blogResult.data].sort((a, b) => b.likes - a.likes)
 
+  const navStyle = {
+    backgroundColor: '#e9e9e9',
+    padding: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px',
+    borderRadius: '4px',
+    marginBottom: '20px',
+  }
+
+  const linkStyle = {
+    textDecoration: 'none',
+    color: '#333',
+    fontWeight: 'bold',
+    padding: '5px 10px',
+    borderRadius: '4px',
+    backgroundColor: '#fff',
+    border: '1px solid #ccc',
+  }
+
   return (
     <div>
       <Notification />
-      {/* NUEVA BARRA DE NAVEGACIÓN */}
-      <nav style={{ backgroundColor: '#ddd', padding: 5, marginBottom: 10 }}>
-        <Link style={{ padding: 5 }} to="/">
+
+      <nav style={navStyle}>
+        <Link style={linkStyle} to="/">
           blogs
         </Link>
-        <Link style={{ padding: 5 }} to="/users">
+        <Link style={linkStyle} to="/users">
           users
         </Link>
-        <span style={{ padding: 5 }}>
-          {user.name} logged in <button onClick={handleLogout}>logout</button>
-        </span>
+
+        <div
+          style={{
+            marginLeft: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+          }}
+        >
+          <em style={{ color: '#555' }}>{user.name} logged in</em>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '5px 15px',
+              backgroundColor: '#f44336',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            logout
+          </button>
+        </div>
       </nav>
-      <h2>Blogs</h2>
+
+      <h1 style={{ marginTop: '0' }}>Blog App</h1>
 
       <Routes>
         {/* INDICACIÓN: Nueva ruta para los detalles del blog */}
