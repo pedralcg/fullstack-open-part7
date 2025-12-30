@@ -12,6 +12,7 @@ import Blog from './components/Blog'
 import Notification from './components/Notification'
 import Togglable from './components/Togglable'
 import BlogForm from './components/BlogForm'
+import BlogDetails from './components/BlogDetails'
 import Users from './components/Users'
 import User from './components/User'
 import { useNotificationDispatch } from './NotificationContext'
@@ -41,7 +42,7 @@ const App = () => {
     refetchOnWindowFocus: false,
   })
 
-  // Hook para Usuarios (Ejercicio 7.15)
+  // Hook para Usuarios
   const usersResult = useQuery({
     queryKey: ['users'],
     queryFn: userService.getAll,
@@ -50,11 +51,17 @@ const App = () => {
 
   // Hook de Match para la ruta individual
   const match = useMatch('/users/:id')
+  const blogMatch = useMatch('/blogs/:id')
 
-  // 2. Lógica de filtrado de usuario (No es un hook, puede ir aquí)
+  // 2. Lógica de filtrado de vistas individuales
   const individualUser =
     match && usersResult.data
       ? usersResult.data.find((u) => u.id === match.params.id)
+      : null
+
+  const individualBlog =
+    blogMatch && blogResult.data // INDICACIÓN: Búsqueda del blog
+      ? blogResult.data.find((b) => b.id === blogMatch.params.id)
       : null
 
   //! useEffect para Cargar la Sesión
@@ -243,7 +250,18 @@ const App = () => {
       <h2>Blogs</h2>
 
       <Routes>
-        {/* INDICACIÓN: Pasamos el individualUser calculado arriba */}
+        {/* INDICACIÓN: Nueva ruta para los detalles del blog */}
+        <Route
+          path="/blogs/:id"
+          element={
+            <BlogDetails
+              blog={individualBlog}
+              handleLike={() => updateBlog(individualBlog)}
+              handleDelete={() => handleDeleteBlog(individualBlog)}
+              currentUser={user}
+            />
+          }
+        />
         <Route path="/users/:id" element={<User user={individualUser} />} />
         <Route path="/users" element={<Users />} />
         <Route
@@ -254,13 +272,7 @@ const App = () => {
                 <BlogForm createBlog={addBlog} />
               </Togglable>
               {blogs.map((blog) => (
-                <Blog
-                  key={blog.id}
-                  blog={blog}
-                  handleLike={() => updateBlog(blog)}
-                  handleDelete={() => handleDeleteBlog(blog)}
-                  currentUser={user}
-                />
+                <Blog key={blog.id} blog={blog} />
               ))}
             </>
           }
