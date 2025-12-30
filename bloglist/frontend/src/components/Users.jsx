@@ -21,8 +21,10 @@ const Users = () => {
       <table>
         <thead>
           <tr>
+            {/* Celda vacía para alinear la columna de nombres */}
             <th></th>
-            <th>
+            {/* Alineamos a la izquierda para que el texto coincida con los números */}
+            <th style={{ textAlign: 'left', paddingLeft: '10px' }}>
               <strong>blogs created</strong>
             </th>
           </tr>
@@ -30,10 +32,11 @@ const Users = () => {
         <tbody>
           {users.map((user) => (
             <tr key={user.id}>
-              <td>
+              <td style={{ paddingRight: '20px' }}>
                 <Link to={`/users/${user.id}`}>{user.name}</Link>
               </td>
-              <td>{user.blogs.length}</td>
+              {/* Alineamos el número para que caiga bajo el encabezado */}
+              <td style={{ textAlign: 'center' }}>{user.blogs.length}</td>
             </tr>
           ))}
         </tbody>

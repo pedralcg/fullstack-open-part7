@@ -147,7 +147,13 @@ const App = () => {
     mutationFn: ({ id, comment }) => blogService.addComment(id, comment),
     onSuccess: (updatedBlog) => {
       queryClient.setQueryData(['blogs'], (oldBlogs) =>
-        oldBlogs.map((b) => (b.id === updatedBlog.id ? updatedBlog : b)),
+        oldBlogs.map((b) => {
+          if (b.id === updatedBlog.id) {
+            // IMPORTANTE: Mantenemos el objeto 'user' original que tiene el 'username' para que el botón de borrado no desaparezca.
+            return { ...updatedBlog, user: b.user }
+          }
+          return b
+        }),
       )
     },
   })
@@ -313,12 +319,12 @@ const App = () => {
               handleLike={() => updateBlog(individualBlog)}
               handleDelete={() => handleDeleteBlog(individualBlog)}
               currentUser={user}
-              handleComment={handleAddComment} // Conexión para eliminar el warning de ESLint
+              handleComment={handleAddComment}
             />
           }
         />
         <Route path="/users/:id" element={<User user={individualUser} />} />
-        <Route path="/users" element={<Users users={usersResult.data} />} />
+        <Route path="/users" element={<Users />} />
         <Route
           path="/"
           element={
