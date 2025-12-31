@@ -1,26 +1,29 @@
-import React from 'react'
 import PropTypes from 'prop-types'
 import { Link } from 'react-router-dom'
+import { Card, CardBody } from '@heroui/react'
 
 const Blog = ({ blog }) => {
-  const blogStyle = {
-    paddingTop: 10,
-    paddingLeft: 2,
-    border: 'solid',
-    borderWidth: 1,
-    marginBottom: 5,
-  }
-
   return (
-    <div style={blogStyle} className="blogItem">
-      <div data-testid="blog-header">
-        {/* El título ahora es un enlace a la vista individual */}
-        <Link to={`/blogs/${blog.id}`}>
-          <span data-testid="blog-title">{blog.title}</span>{' '}
-          <span data-testid="blog-author">{blog.author}</span>
-        </Link>
-      </div>
-    </div>
+    <Card
+      className="blogItem hover:shadow-lg transition-shadow"
+      isPressable
+      as={Link}
+      to={`/blogs/${blog.id}`}
+    >
+      <CardBody className="flex flex-row items-center justify-between gap-4 py-3">
+        <div className="flex flex-col gap-1">
+          <h3
+            className="text-lg font-semibold text-gray-800 hover:text-blue-600 transition-colors"
+            data-testid="blog-title"
+          >
+            {blog.title}
+          </h3>
+          <p className="text-sm text-gray-500" data-testid="blog-author">
+            by {blog.author}
+          </p>
+        </div>
+      </CardBody>
+    </Card>
   )
 }
 

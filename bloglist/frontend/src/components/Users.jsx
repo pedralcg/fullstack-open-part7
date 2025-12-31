@@ -1,46 +1,61 @@
+import React from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import userService from '../services/users'
-import { Link } from 'react-router-dom'
+import {
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+} from '@heroui/react'
 
 const Users = () => {
-  const result = useQuery({
+  const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: userService.getAll,
-    refetchOnWindowFocus: false,
   })
 
-  if (result.isLoading) {
-    return <div>Cargando datos de usuarios...</div>
-  }
-
-  const users = result.data
+  if (isLoading) return <div className="text-center p-10">Loading users...</div>
 
   return (
-    <div>
-      <h2>Users</h2>
-      <table>
-        <thead>
-          <tr>
-            {/* Celda vacía para alinear la columna de nombres */}
-            <th></th>
-            {/* Alineamos a la izquierda para que el texto coincida con los números */}
-            <th style={{ textAlign: 'left', paddingLeft: '10px' }}>
-              <strong>blogs created</strong>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.id}>
-              <td style={{ paddingRight: '20px' }}>
-                <Link to={`/users/${user.id}`}>{user.name}</Link>
-              </td>
-              {/* Alineamos el número para que caiga bajo el encabezado */}
-              <td style={{ textAlign: 'center' }}>{user.blogs.length}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="flex flex-col gap-6">
+      <h2 className="text-3xl font-bold text-foreground">Users</h2>
+      <Table
+        aria-label="Table of users and blog counts"
+        shadow="sm"
+        className="bg-content1"
+      >
+        <TableHeader>
+          <TableColumn className="text-blue-600 font-bold">
+            USER NAME
+          </TableColumn>
+          <TableColumn className="text-blue-600 font-bold text-center">
+            BLOGS CREATED
+          </TableColumn>
+        </TableHeader>
+        <TableBody items={users}>
+          {(user) => (
+            <TableRow
+              key={user.id}
+              className="hover:bg-default-100 transition-colors"
+            >
+              <TableCell>
+                <Link
+                  to={`/users/${user.id}`}
+                  className="text-blue-600 font-medium hover:underline"
+                >
+                  {user.name}
+                </Link>
+              </TableCell>
+              <TableCell className="text-center font-semibold">
+                {user.blogs.length}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     </div>
   )
 }
